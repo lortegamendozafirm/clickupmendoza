@@ -1,0 +1,61 @@
+# ============================================================================
+# Docker Ignore - Archivos que NO deben incluirse en la imagen Docker
+# ============================================================================
+
+# Entornos virtuales de Python
+.venv/
+venv/
+env/
+ENV/
+
+# Variables de entorno y secretos
+.env
+.env.local
+.env.production
+*.key
+*.pem
+*.json
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Documentación
+README.md
+docs/
+*.md
+
+# Datos locales
+*.csv
+*.db
+*.sqlite
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+tmp/
+temp/
+*.tmp

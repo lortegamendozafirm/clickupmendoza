@@ -1,0 +1,64 @@
+# ============================================================================
+# Nexus Legal Integration - Git Ignore
+# ============================================================================
+
+# Entornos virtuales de Python
+.venv/
+venv/
+env/
+ENV/
+
+# Variables de entorno y secretos
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+*.pem
+secrets/
+gcp-service-account.json
+
+# Cache de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Datos locales sensibles
+*.csv
+*.db
+*.sqlite
+data/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+*.tar.gz
+
+credentials_2.json
+credentials.json

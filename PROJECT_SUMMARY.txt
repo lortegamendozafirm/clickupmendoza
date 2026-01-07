@@ -1,0 +1,225 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                  NEXUS LEGAL INTEGRATION v2.1 - RESUMEN                      ║
+║                  Middleware ClickUp → Cloud SQL + API                        ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📦 STACK TECNOLÓGICO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✓ Python 3.11+
+  ✓ FastAPI (async web framework)
+  ✓ SQLAlchemy 2.0 (ORM)
+  ✓ PostgreSQL 15 + pg_trgm (fuzzy search)
+  ✓ Google Cloud Run (serverless hosting)
+  ✓ Cloud SQL (managed PostgreSQL)
+  ✓ Secret Manager (credentials)
+  ✓ Alembic (database migrations)
+
+📁 ESTRUCTURA DEL PROYECTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+clickupmendoza/
+├── app/
+│   ├── main.py                  # FastAPI app principal
+│   ├── config.py                # Configuración (Pydantic)
+│   ├── database.py              # SQLAlchemy setup
+│   ├── api/                     # Endpoints REST
+│   │   ├── webhooks.py          # POST /webhooks/clickup
+│   │   └── leads.py             # GET /leads/search, etc.
+│   ├── core/                    # Parsing y normalización
+│   │   ├── parser.py            # Extracción con regex
+│   │   ├── normalizer.py        # Normalización de nombres
+│   │   └── text_utils.py        # Utilidades de texto
+│   ├── services/                # Lógica de negocio
+│   │   ├── lead_service.py      # Transformaciones
+│   │   └── clickup_service.py   # Cliente API ClickUp
+│   ├── repositories/            # Acceso a datos
+│   │   └── lead_repository.py   # CRUD + búsqueda fuzzy
+│   ├── models/                  # ORM models
+│   │   └── lead.py              # LeadsCache table
+│   └── schemas/                 # Pydantic schemas
+│       ├── lead.py              # Response validation
+│       └── webhook.py           # Webhook validation
+├── scripts/
+│   ├── init_db.py               # Inicialización DB
+│   └── load_historical_data.py  # ETL desde CSV
+├── alembic/                     # Migraciones DB
+├── Dockerfile                   # Imagen Docker
+├── cloudbuild.yaml              # CI/CD Google Cloud
+├── deploy.sh                    # Script de deployment
+├── requirements.txt             # Dependencias Python
+├── Makefile                     # Comandos comunes
+├── README.md                    # Documentación principal
+├── QUICKSTART.md                # Guía rápida de inicio
+├── ARCHITECTURE.md              # Arquitectura técnica
+└── API_EXAMPLES.md              # Ejemplos de uso
+
+🔄 FLUJOS PRINCIPALES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1️⃣  WEBHOOK INGEST (Tiempo Real)
+   ClickUp → POST /webhooks/clickup → Validar firma → Fetch task completa
+   → Parse + Normalize → Upsert en Cloud SQL
+
+2️⃣  BÚSQUEDA FUZZY (MCP/API)
+   Cliente → GET /leads/search?q=nombre → Normalizar query
+   → SQL: WHERE nombre_normalizado % 'query' → Retornar top N
+
+3️⃣  BOOTSTRAP HISTÓRICO (ETL)
+   CSV files → load_historical_data.py → Parse cada fila
+   → Transform → Upsert batch en DB
+
+4️⃣  SAFETY NET (Job Nocturno)
+   Cloud Scheduler → ClickUp API (delta últimas 24h)
+   → Transform → Upsert → Captura webhooks perdidos
+
+🎯 CARACTERÍSTICAS PRINCIPALES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Parsing Inteligente
+   • Extrae campos de texto libre (regex)
+   • Normaliza nombres (ASCII, mayúsculas)
+   • Valida teléfonos (10-15 dígitos)
+   • Limpia fechas (elimina ordinales)
+
+✅ Búsqueda Fuzzy (pg_trgm)
+   • Tolerante a typos: "Peres" → "Perez"
+   • Orden flexible: "Juan Perez" ≈ "Perez Juan"
+   • Score de similitud (0.0 - 1.0)
+   • Índice GIN para performance
+
+✅ Arquitectura por Capas
+   • API → Services → Core → Repositories → Models
+   • Separación de responsabilidades
+   • Fácil testing y mantenimiento
+
+✅ Cloud Native
+   • Scale-to-zero (ahorro de costos)
+   • Secrets Manager (seguridad)
+   • Cloud SQL (managed DB)
+   • HTTPS/TLS por default
+
+🚀 QUICK START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LOCAL:
+  1. python3.11 -m venv .venv && source .venv/bin/activate
+  2. pip install -r requirements.txt
+  3. Editar .env con credenciales
+  4. createdb nexus_legal_db
+  5. python scripts/init_db.py
+  6. uvicorn app.main:app --reload --port 8080
+  7. Abrir http://localhost:8080/docs
+
+CLOUD RUN:
+  1. gcloud config set project YOUR_PROJECT_ID
+  2. Crear Cloud SQL instance + database
+  3. Configurar secrets (API tokens, DB password)
+  4. Editar cloudbuild.yaml (reemplazar variables)
+  5. ./deploy.sh
+  6. Configurar webhook en ClickUp
+
+📊 API ENDPOINTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  GET  /                           Health check
+  GET  /docs                       Swagger UI (documentación)
+  GET  /leads/search?q=X&limit=N   Búsqueda fuzzy por nombre
+  GET  /leads/{task_id}            Obtener lead por ID de ClickUp
+  GET  /leads/mycase/{id}          Obtener lead por MyCase ID
+  GET  /leads/?skip=0&limit=100    Listar todos (paginado)
+  POST /webhooks/clickup           Webhook de ClickUp (interno)
+
+🔧 COMANDOS ÚTILES (Makefile)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  make install        Instalar dependencias
+  make dev            Servidor de desarrollo
+  make init-db        Inicializar base de datos
+  make migrate-up     Aplicar migraciones
+  make deploy         Desplegar a Cloud Run
+  make clean          Limpiar archivos temporales
+  make help           Ver todos los comandos
+
+🛡️  SEGURIDAD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✓ Secrets en Secret Manager (nunca en código)
+  ✓ HTTPS/TLS obligatorio
+  ✓ Validación de webhook signatures
+  ✓ SQL injection prevention (ORM)
+  ✓ Cloud SQL encriptación en reposo
+  ✓ PII protection (casos VAWA)
+
+📈 LÓGICA DE PARSING (Ejemplo)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INPUT (task_content):
+  Name: Juan Pérez
+  Phone: (555) 123-4567
+  Email: juan@example.com
+  
+  Other result of interview (optional):
+  Cliente califica para VAWA.
+  Evidencia documentada.
+  
+  Type of Interview: Individual
+
+OUTPUT (parsed):
+  full_name_extracted: "Juan Pérez"
+  phone_raw: "(555) 123-4567"
+  phone_number: "5551234567"           # Validado
+  email_extracted: "juan@example.com"
+  interview_other: "Cliente califica..."
+  interview_type: "Individual"
+
+NORMALIZACIÓN (task_name):
+  INPUT:  "López García | 12345678"
+  OUTPUT:
+    nombre_clickup: "López García"
+    id_mycase: "12345678"
+    nombre_normalizado: "LOPEZ GARCIA"  # Para búsqueda fuzzy
+
+📚 DOCUMENTACIÓN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  README.md          Documentación completa del proyecto
+  QUICKSTART.md      Guía rápida de inicio (< 10 min)
+  ARCHITECTURE.md    Arquitectura técnica detallada
+  API_EXAMPLES.md    Ejemplos de uso de la API
+  /docs              Swagger UI interactivo (runtime)
+
+🗺️  ROADMAP (Opcional)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ☐ Sync a Google Sheets (reportes)
+  ☐ Job nocturno con Cloud Scheduler
+  ☐ Extracción de comentarios de ClickUp
+  ☐ Dashboard de métricas (Looker Studio)
+  ☐ Tests unitarios (pytest)
+  ☐ CI/CD con GitHub Actions
+
+✅ CHECKLIST DE DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ☐ Crear proyecto en GCP
+  ☐ Crear Cloud SQL instance (PostgreSQL 15)
+  ☐ Crear base de datos + usuario
+  ☐ Habilitar extensión pg_trgm
+  ☐ Ejecutar script init_db.py
+  ☐ Configurar secrets en Secret Manager
+  ☐ Editar cloudbuild.yaml (PROJECT_ID, REGION, INSTANCE)
+  ☐ Ejecutar ./deploy.sh
+  ☐ Obtener URL del servicio (Cloud Run)
+  ☐ Configurar webhook en ClickUp apuntando a URL/webhooks/clickup
+  ☐ Verificar health check (GET /)
+  ☐ Probar búsqueda (GET /leads/search?q=test)
+  ☐ (Opcional) Cargar datos históricos con load_historical_data.py
+  ☐ (Opcional) Configurar Cloud Scheduler para safety net job
+
+📞 SOPORTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Para problemas o preguntas, contactar al equipo de desarrollo.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Versión: 2.1.0 | Fecha: 2026-01-05 | Stack: Python 3.11 + FastAPI + Cloud Run
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
