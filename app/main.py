@@ -1,3 +1,4 @@
+# app/main.py
 """
 FastAPI Application - Nexus Legal Integration
 Punto de entrada principal de la aplicación.
@@ -6,7 +7,7 @@ Punto de entrada principal de la aplicación.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api import webhooks, leads
+from app.api import webhooks, leads, callbacks
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -33,7 +34,7 @@ app.add_middleware(
 # ============================================================================
 app.include_router(webhooks.router)
 app.include_router(leads.router)
-
+app.include_router(callbacks.router, prefix="/callbacks", tags=["Callbacks"])
 
 # ============================================================================
 # Health Check

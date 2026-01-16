@@ -6,7 +6,7 @@ Incluye búsqueda fuzzy con pg_trgm.
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone  # Importamos timezone para evitar el warning
 
 from app.models.lead import LeadsCache
 from app.core.text_utils import normalize_name
@@ -43,6 +43,10 @@ class LeadRepository:
         if not task_id:
             raise ValueError("task_id es requerido para upsert")
 
+        # 1. Definimos la hora actual UTC una sola vez (Python 3.11 way)
+        # datetime.utcnow() está deprecado, usamos datetime.now(timezone.utc)
+        current_time = datetime.now(timezone.utc)
+
         # Buscar si existe
         existing = self.get_by_task_id(task_id)
 
@@ -51,11 +55,14 @@ class LeadRepository:
             for key, value in data.items():
                 if hasattr(existing, key):
                     setattr(existing, key, value)
-            existing.synced_at = datetime.utcnow()
+            
+            # Corrección: Asignamos el valor directo, NO una lambda
+            existing.synced_at = current_time
             lead = existing
         else:
             # INSERT
-            data["synced_at"] = datetime.utcnow()
+            # Corrección: Asignamos el valor directo al diccionario antes de crear el objeto
+            data["synced_at"] = current_time
             lead = LeadsCache(**data)
             self.db.add(lead)
 
@@ -66,26 +73,12 @@ class LeadRepository:
     def search_by_name(self, query: str, limit: int = 10) -> List[LeadsCache]:
         """
         Búsqueda fuzzy por nombre usando pg_trgm similarity.
-
-        Usa el operador % (similarity) y la función similarity() de pg_trgm.
-        Requiere que la extensión pg_trgm esté habilitada y el índice GIN creado.
-
-        Args:
-            query: Texto a buscar
-            limit: Número máximo de resultados
-
-        Returns:
-            Lista de leads ordenados por similitud (mayor a menor)
         """
-        # Normalizar query con la misma función que usamos para los datos
         normalized_query = normalize_name(query)
 
         if not normalized_query:
             return []
 
-        # Consulta con pg_trgm similarity
-        # % es el operador de similitud (requiere threshold, default 0.3)
-        # similarity() devuelve el score (0.0 a 1.0)
         results = (
             self.db.query(LeadsCache)
             .filter(text("nombre_normalizado % :query"))
@@ -100,14 +93,6 @@ class LeadRepository:
     def get_recent_updates(self, since: datetime, limit: int = 100) -> List[LeadsCache]:
         """
         Obtiene leads actualizados después de una fecha.
-        Útil para sync incremental.
-
-        Args:
-            since: Fecha de corte (date_updated > since)
-            limit: Máximo de registros
-
-        Returns:
-            Lista de leads actualizados recientemente
         """
         return (
             self.db.query(LeadsCache)
@@ -120,13 +105,6 @@ class LeadRepository:
     def get_all(self, skip: int = 0, limit: int = 100) -> List[LeadsCache]:
         """
         Obtiene todos los leads con paginación.
-
-        Args:
-            skip: Offset
-            limit: Límite de registros
-
-        Returns:
-            Lista de leads
         """
         return (
             self.db.query(LeadsCache)

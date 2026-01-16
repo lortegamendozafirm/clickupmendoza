@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     clickup_webhook_secret: str
     clickup_team_id: Optional[str] = None
     clickup_list_id: Optional[str] = None
+    clickup_trigger_condicional: Optional[str] = None
+    clickup_field_id_ai_link: str
 
     # Database
     database_url: Optional[str] = None
@@ -45,6 +47,8 @@ class Settings(BaseSettings):
     # External Dispatch (HTTP POST on webhook trigger)
     external_dispatch_enabled: bool = False
     external_dispatch_url: Optional[str] = None
+    filtros_api_key: Optional[str] = None
+    external_dispatch_callback_base_url: Optional[str] = None
 
     # Application
     app_env: str = "production"

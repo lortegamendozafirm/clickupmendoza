@@ -1,19 +1,19 @@
 """
-Endpoints para webhooks de ClickUp - MODO SIN BASE DE DATOS
+Endpoints para webhooks de ClickUp - OPTIMIZADO CON BACKGROUND TASKS
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, BackgroundTasks
-# from sqlalchemy.orm import Session  <-- COMENTADO
+from sqlalchemy.orm import Session
 from typing import Optional
 import httpx
 import logging
-import json
+import json # Importante para los logs del JSON
 
-# from app.database import get_db  <-- COMENTADO
+from app.database import get_db
 from app.services.clickup_service import ClickUpService
-# from app.services.lead_service import LeadService          <-- COMENTADO
+from app.services.lead_service import LeadService
 from app.services.sheets_service import GoogleSheetsService
-# from app.repositories.lead_repository import LeadRepository <-- COMENTADO
+from app.repositories.lead_repository import LeadRepository
 from app.config import settings
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -23,13 +23,12 @@ logger = logging.getLogger(__name__)
 @router.post("/clickup")
 async def clickup_webhook(
     request: Request,
-    background_tasks: BackgroundTasks,
-    # db: Session = Depends(get_db),  <-- IMPORTANTE: COMENTAR ESTO PARA EVITAR ERROR DE CONEXIÓN
+    background_tasks: BackgroundTasks, # <--- Inyectamos BackgroundTasks
+    db: Session = Depends(get_db),
     x_signature: Optional[str] = Header(None)
 ):
     """
     Webhook optimizado: Responde rápido y procesa en segundo plano.
-    NOTA: Persistencia en DB deshabilitada temporalmente.
     """
     # 1. Validación de Firma y Payload (Rápido)
     body = await request.body()
@@ -74,9 +73,11 @@ async def clickup_webhook(
             break
 
     # --- PROTECCIÓN CONTRA BUCLES ---
+    # Verificar si el campo "Link AI Filtro" (el resultado) YA tiene valor.
+    # Si ya tiene valor, no volvemos a procesar para evitar bucles infinitos.
     ai_link_exists = False
     for field in custom_fields:
-        if field.get("id") == settings.clickup_field_id_ai_link:
+        if field.get("id") == settings.clickup_field_id_ai_link: # Usamos el ID del config
             if field.get("value"): 
                 ai_link_exists = True
                 break
@@ -105,26 +106,29 @@ async def clickup_webhook(
                 task_data
             )
 
-    # 5. Guardar en DB Local (Rápido) - DESHABILITADO TEMPORALMENTE
-    # lead_data = LeadService.transform_clickup_task(task_data)
-    # repo = LeadRepository(db)   <-- ESTO REQUERIRÍA LA VARIABLE 'db' QUE QUITAMOS ARRIBA
-    # lead = repo.upsert(lead_data)
+    # 5. Guardar en DB Local (Rápido)
+    lead_data = LeadService.transform_clickup_task(task_data)
+    repo = LeadRepository(db)
+    lead = repo.upsert(lead_data)
 
     # RESPONDER A CLICKUP INMEDIATAMENTE
     return {"status": "queued", "task_id": task_id}
 
 
-# ... (El resto de funciones auxiliares _dispatch y _sync se quedan igual) ...
 async def _dispatch_to_external_service(task_id: str, task_data: dict, link_intake_value: str) -> bool:
     """
     Envía a Filtros con LOGS DETALLADOS.
+    Esta función ahora corre en background, así que puede tardar lo que quiera.
     """
     logger.info(f"🚀 [Background] Iniciando Dispatch a Filtros para Task {task_id}")
     
     try:
+        # Construir URL de Callback
+        # Asegúrate que settings.external_dispatch_callback_base_url NO tenga slash al final
         base_url = settings.external_dispatch_callback_base_url.rstrip("/")
         callback_url = f"{base_url}/callbacks/filtros"
         
+        # Construir payload
         payload = {
             "task_id": task_id,
             "client_name": task_data.get("name"),
@@ -141,6 +145,7 @@ async def _dispatch_to_external_service(task_id: str, task_data: dict, link_inta
             "X-API-Key": settings.filtros_api_key
         }
 
+        # --- LOG DEL PAYLOAD ---
         logger.info(f"📦 [Background] PAYLOAD A ENVIAR A {settings.external_dispatch_url}:\n{json.dumps(payload, indent=2)}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:

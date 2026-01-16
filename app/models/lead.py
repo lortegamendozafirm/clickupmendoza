@@ -5,7 +5,7 @@ Wide table con campos nativos de ClickUp + campos minados del contenido
 
 from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, Index
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime
+from datetime import datetime, timezone # <--- IMPORTANTE: Importamos timezone
 
 Base = declarative_base()
 
@@ -109,8 +109,9 @@ class LeadsCache(Base):
     synced_at = Column(
         DateTime(timezone=True),
         nullable=False,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        # CORRECCIÓN: Usamos timezone.utc explícitamente y una lambda para ejecución diferida
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         comment="Última vez que se sincronizó desde ClickUp"
     )
 
@@ -119,8 +120,6 @@ class LeadsCache(Base):
     # ========================================================================
     __table_args__ = (
         # Índice GIN para búsqueda trigram fuzzy (pg_trgm)
-        # Se crea vía migración SQL directa porque SQLAlchemy no lo soporta nativamente
-        # CREATE INDEX idx_nombre_normalizado_gin ON leads_cache USING gin (nombre_normalizado gin_trgm_ops);
         Index("idx_task_id", "task_id"),
         Index("idx_id_mycase", "id_mycase"),
         Index("idx_phone_number", "phone_number"),

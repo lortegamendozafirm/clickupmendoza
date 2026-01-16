@@ -10,7 +10,7 @@ load_dotenv()
 CLICKUP_API_TOKEN = os.getenv("CLICKUP_API_TOKEN")
 CLICKUP_LIST_ID = os.getenv("CLICKUP_LIST_ID")
 # NOTA: Cambia esto si tu URL de ngrok cambió
-WEBHOOK_URL = "https://picrotoxic-unengineered-yu.ngrok-free.dev/webhooks/clickup"
+WEBHOOK_URL = "https://nexus-legal-api-223080314602.us-central1.run.app/webhooks/clickup"
 
 def register_and_show_secret():
     if not CLICKUP_API_TOKEN or not CLICKUP_LIST_ID:
@@ -31,7 +31,12 @@ def register_and_show_secret():
     
     payload = {
         "endpoint": WEBHOOK_URL,
-        "events": ["taskCreated", "taskUpdated"],
+        "events": [
+            "taskCreated",
+            "taskUpdated",
+            "taskMoved",
+            "taskStatusUpdated"
+        ],
         "list_id": int(CLICKUP_LIST_ID)
     }
 

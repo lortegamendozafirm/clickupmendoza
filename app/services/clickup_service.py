@@ -124,3 +124,37 @@ class ClickUpService:
         except Exception as e:
             print(f"❌ Error validando firma: {e}")
             return False
+    async def set_custom_field_value(self, task_id: str, field_id: str, value: str) -> bool:
+            """
+            Establece el valor de un campo personalizado en una tarea.
+            
+            Args:
+                task_id: ID de la tarea
+                field_id: UUID del campo personalizado (Link AI Filtro)
+                value: Valor a escribir (el URL del doc)
+                
+            Returns:
+                True si fue exitoso, False si falló
+            """
+            # Endpoint oficial de ClickUp para setear campos
+            url = f"{self.BASE_URL}/task/{task_id}/field/{field_id}"
+            
+            payload = {
+                "value": value
+            }
+
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.post(
+                        url, 
+                        headers=self.headers, 
+                        json=payload, 
+                        timeout=10.0
+                    )
+                    response.raise_for_status()
+                    return True
+                except httpx.HTTPError as e:
+                    print(f"❌ Error actualizando campo {field_id} en tarea {task_id}: {e}")
+                    # Si quieres ver el detalle del error de ClickUp:
+                    # print(e.response.text if hasattr(e, 'response') else str(e))
+                    return False
