@@ -1,130 +1,125 @@
 """
 Modelo principal: leads_cache
-Wide table con campos nativos de ClickUp + campos minados del contenido
+Versión Homologada con CSV de Exportación y Análisis R.
 """
 
 from sqlalchemy import Column, String, Integer, Text, DateTime, Boolean, Index
 from sqlalchemy.ext.declarative import declarative_base
-from datetime import datetime, timezone # <--- IMPORTANTE: Importamos timezone
+from sqlalchemy.sql import func
+from datetime import datetime, timezone
 
 Base = declarative_base()
-
 
 class LeadsCache(Base):
     """
     Tabla principal que almacena leads de ClickUp con datos parseados.
-    Incluye metadatos nativos + campos extraídos del task_content.
+    Diseñada para recibir datos crudos del CSV y datos limpios del Parser.
     """
 
     __tablename__ = "leads_cache"
 
     # ========================================================================
-    # IDENTIFICADORES (PK + extraídos)
+    # 1. IDENTIFICADORES Y CLAVES
     # ========================================================================
     task_id = Column(String(50), primary_key=True, nullable=False, index=True)
-    id_mycase = Column(String(20), nullable=True, index=True, comment="Extraído del texto")
-    mycase_link = Column(String(500), nullable=True, comment="URL de MyCase")
+    id_mycase = Column(String(255), nullable=True, index=True, comment="ID numérico de MyCase")
+    mycase_link = Column(String(500), nullable=True, comment="URL directa")
 
     # ========================================================================
-    # METADATOS CLICKUP (nativos)
+    # 2. METADATOS CLICKUP (Nativos)
     # ========================================================================
-    task_name = Column(Text, nullable=True, comment="Nombre original de la tarea")
-    status = Column(String(100), nullable=True, comment="Estado de la tarea")
-    priority = Column(String(50), nullable=True, comment="Prioridad")
-    created_by = Column(String(200), nullable=True, comment="Creador de la tarea")
-    assignee = Column(Text, nullable=True, comment="Asignado (puede ser JSON o texto)")
+    task_name = Column(Text, nullable=True, comment="Nombre original")
+    status = Column(String(255), nullable=True)
+    priority = Column(String(255), nullable=True)
+    created_by = Column(String(255), nullable=True)
+    assignee = Column(Text, nullable=True, comment="Puede contener múltiples nombres")
+    
+    # Estructura (Space/Folder/List) - Detectados en tu análisis R
+    space_name = Column(String(255), nullable=True)
+    folder_name = Column(String(255), nullable=True)
+    list_name = Column(String(255), nullable=True)
+    task_type = Column(String(100), nullable=True)
 
+    # Fechas
     date_created = Column(DateTime(timezone=True), nullable=True, index=True)
     date_updated = Column(DateTime(timezone=True), nullable=True, index=True)
     due_date = Column(DateTime(timezone=True), nullable=True)
+    date_closed = Column(DateTime(timezone=True), nullable=True)
 
     # ========================================================================
-    # CAMPOS DE NEGOCIO / PIPELINE
+    # 3. DATOS DEL NEGOCIO (Mapeados desde CSV + Mining)
     # ========================================================================
-    pipeline_de_viabilidad = Column(String(200), nullable=True)
+    # Pipeline y Estado
+    pipeline_de_viabilidad = Column(String(255), nullable=True)
     fecha_consulta_original = Column(DateTime(timezone=True), nullable=True)
-    tis_open = Column(Boolean, nullable=True)
+    tis_open = Column(Boolean, nullable=True, default=False)
+    
+    # Entrevista / Intake
+    consult_notice = Column(String(255), nullable=True, comment="Aviso de Consulta")
+    interviewee = Column(String(255), nullable=True)
+    interview_type = Column(String(255), nullable=True, comment="Individual/Combo")
+    interview_result = Column(String(255), nullable=True)
+    interview_other = Column(Text, nullable=True, comment="Motivos de no completado/otros")
+    
+    # Datos del Caso
+    case_type = Column(String(255), nullable=True)
+    accident_last_2y = Column(String(255), nullable=True, comment="yes/no normalizado")
+    video_call = Column(String(255), nullable=True, comment="yes/no normalizado")
+    record_criminal = Column(String(255), nullable=True)
+    joint_residences = Column(String(255), nullable=True)
+    eoir_pending = Column(String(255), nullable=True)
+    tvisa_min_wage = Column(String(255), nullable=True)
+
+    # Referidos
+    referral_full_name = Column(String(255), nullable=True)
+    referral_phone_number = Column(String(255), nullable=True)
 
     # ========================================================================
-    # CAMPOS NORMALIZADOS PARA BÚSQUEDA
+    # 4. DATOS DE CONTACTO (Extraídos / Normalizados)
     # ========================================================================
-    nombre_clickup = Column(Text, nullable=True, comment="Parte antes del pipe |")
+    full_name_extracted = Column(String(255), nullable=True)
+    phone_raw = Column(String(255), nullable=True)
+    phone_number = Column(String(255), nullable=True, index=True, comment="Solo dígitos")
+    email_extracted = Column(String(255), nullable=True)
+    location = Column(Text, nullable=True)
+
+    # ========================================================================
+    # 5. CAMPOS DE BÚSQUEDA NORMALIZADA
+    # ========================================================================
+    nombre_clickup = Column(Text, nullable=True)
     nombre_normalizado = Column(
         String(500),
         nullable=True,
         index=True,
-        comment="ASCII, mayúsculas, alfanumérico para búsqueda fuzzy"
+        comment="NORMALIZADO PARA BÚSQUEDA FUZZY (SIN ACENTOS)"
     )
 
     # ========================================================================
-    # MINING DESDE task_content (datos extraídos por regex)
+    # 6. CONTENIDO PESADO (Large Text)
     # ========================================================================
-    full_name_extracted = Column(String(500), nullable=True, comment="Name: extraído")
-    phone_raw = Column(String(100), nullable=True, comment="Teléfono sin limpiar")
-    phone_number = Column(
-        String(20),
-        nullable=True,
-        index=True,
-        comment="Solo dígitos, validado (10-15 chars)"
-    )
-    email_extracted = Column(String(255), nullable=True, comment="Email extraído")
-    location = Column(Text, nullable=True, comment="Ubicación (bloque)")
-
-    interviewee = Column(String(500), nullable=True, comment="Quién fue entrevistado")
-    interview_type = Column(String(100), nullable=True, comment="Individual/Combo")
-    interview_result = Column(String(100), nullable=True, comment="Done/Reschedule/...")
-    interview_other = Column(Text, nullable=True, comment="Bloque de 'Other result...'")
-
-    case_type = Column(String(200), nullable=True, comment="Tipo de caso")
-    accident_last_2y = Column(String(10), nullable=True, comment="yes/no normalizado")
-    video_call = Column(String(10), nullable=True, comment="yes/no normalizado")
-
-    # Campos opcionales adicionales (del R script)
-    record_criminal = Column(String(100), nullable=True)
-    joint_residences = Column(String(100), nullable=True)
-    eoir_pending = Column(String(100), nullable=True)
-    tvisa_min_wage = Column(String(100), nullable=True)
-    referral_full_name = Column(String(500), nullable=True)
-    referral_phone_number = Column(String(20), nullable=True)
+    task_content = Column(Text, nullable=True, comment="Descripción completa")
+    latest_comment = Column(Text, nullable=True, comment="Último comentario (puede ser enorme)")
+    comment_count = Column(Integer, default=0)
 
     # ========================================================================
-    # CONTENIDO COMPLETO
-    # ========================================================================
-    task_content = Column(Text, nullable=True, comment="Descripción completa (puede contener PII)")
-    comment_count = Column(Integer, nullable=True, default=0)
-
-    # === AGREGAR ESTAS LÍNEAS ===
-    task_type = Column(String(50), nullable=True, comment="Tipo de tarea")
-    space_name = Column(String(100), nullable=True)
-    folder_name = Column(String(100), nullable=True)
-    list_name = Column(String(100), nullable=True)
-    consult_notice = Column(String(100), nullable=True)
-    latest_comment = Column(Text, nullable=True, comment="Último comentario (puede ser muy largo)")
-    # ============================
-
-    
-    # ========================================================================
-    # TIMESTAMPS INTERNOS
+    # 7. METADATOS DE SISTEMA
     # ========================================================================
     synced_at = Column(
         DateTime(timezone=True),
         nullable=False,
-        # CORRECCIÓN: Usamos timezone.utc explícitamente y una lambda para ejecución diferida
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-        comment="Última vez que se sincronizó desde ClickUp"
+        server_default=func.now(),
+        onupdate=func.now()
     )
 
-    # ========================================================================
-    # ÍNDICES
-    # ========================================================================
+    # Configuración de Índices para optimización
     __table_args__ = (
-        # Índice GIN para búsqueda trigram fuzzy (pg_trgm)
         Index("idx_task_id", "task_id"),
         Index("idx_id_mycase", "id_mycase"),
-        Index("idx_phone_number", "phone_number"),
-        Index("idx_date_updated", "date_updated"),
+        Index("idx_phone_search", "phone_number"),
+        # Índice GIN para búsqueda de texto (requiere extensión pg_trgm)
+        # Se crea manualmente en init_db.py, pero SQLAlchemy lo puede definir aquí si usas dialectos
+        # Index('idx_leads_nombre_trgm', nombre_normalizado, postgresql_ops={"nombre_normalizado": "gin_trgm_ops"}),
     )
 
     def __repr__(self):
-        return f"<LeadsCache(task_id={self.task_id}, nombre={self.nombre_clickup})>"
+        return f"<LeadsCache(id={self.task_id}, status={self.status})>"

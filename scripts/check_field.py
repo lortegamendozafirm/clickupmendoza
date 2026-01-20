@@ -2,14 +2,16 @@ import os
 import httpx
 from dotenv import load_dotenv
 
-# Cargar variables
+# Cargar variables (asegúrate de que tu .env esté en la misma carpeta)
 load_dotenv()
 
 # --- CONFIGURACIÓN ---
 API_TOKEN = os.getenv("CLICKUP_API_TOKEN")
-LIST_ID_X = "901409514974" 
-FIELD_TARGET_ID = "3aa46502-0763-42d3-8cb9-71513566e3ae"
+# Usamos el ID de la Lista X que me diste en el prompt
+LIST_ID_X = "901403238634" 
+FIELD_TARGET_ID = "3aa46502-0763-42d3-8cb9-71513566e3ae" # El ID que tienes en tu .env
 
+# Tu URL de ngrok/Cloud Run
 WEBHOOK_URL = "https://nexus-legal-api-223080314602.us-central1.run.app/webhooks/clickup"
 
 headers = {
@@ -50,47 +52,6 @@ def verify_field_and_create_webhook():
         print(f"❌ Error verificando campos: {e}")
         return
 
-    # 2. Crear Webhook en Lista X
-    print(f"\n🚀 2. Creando Webhook en Lista X ({LIST_ID_X})...")
-    
-    # Obtenemos Team ID primero
-    try:
-        r_team = httpx.get("https://api.clickup.com/api/v2/team", headers=headers)
-        team_id = r_team.json()["teams"][0]["id"]
-    except:
-        print("❌ Error obteniendo Team ID")
-        return
-
-    url_web = f"https://api.clickup.com/api/v2/team/{team_id}/webhook"
-    
-    payload = {
-        "endpoint": WEBHOOK_URL,
-        "events": [
-            "taskCreated",
-            "taskUpdated"
-        ],
-        "list_id": int(LIST_ID_X)
-    }
-
-    try:
-        resp_web = httpx.post(url_web, headers=headers, json=payload)
-        resp_web.raise_for_status()
-        data = resp_web.json()
-        
-        secret = data.get("webhook", {}).get("secret")
-        
-        print("\n" + "="*60)
-        print("✅ WEBHOOK CREADO EXITOSAMENTE EN LISTA X")
-        print("="*60)
-        print(f"🆔 Webhook ID: {data.get('id')}")
-        print(f"🔑 NUEVO SECRET: {secret}")
-        print("="*60)
-        print("\n⚠️ IMPORTANTE: Actualiza tu archivo .env:")
-        print(f'1. Cambia CLICKUP_LIST_ID="{LIST_ID_X}"')
-        print(f'2. Cambia CLICKUP_WEBHOOK_SECRET="{secret}"')
-        
-    except httpx.HTTPStatusError as e:
-        print(f"❌ Error creando webhook: {e.response.text}")
 
 if __name__ == "__main__":
     verify_field_and_create_webhook()

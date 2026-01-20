@@ -1,10 +1,11 @@
 # ============================================================================
-# Google Cloud Build Configuration
-# Construye imagen Docker y la despliega en Cloud Run
+# Google Cloud Build Configuration - Nexus Legal API
 # ============================================================================
 
 steps:
-  # Paso 1: Build Docker image
+  # --------------------------------------------------------------------------
+  # Paso 1: Construir la imagen Docker
+  # --------------------------------------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -14,13 +15,17 @@ steps:
       - 'gcr.io/$PROJECT_ID/nexus-legal-api:latest'
       - '.'
 
-  # Paso 2: Push imagen a Google Container Registry
+  # --------------------------------------------------------------------------
+  # Paso 2: Subir la imagen al Container Registry
+  # --------------------------------------------------------------------------
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'gcr.io/$PROJECT_ID/nexus-legal-api:$COMMIT_SHA'
 
-  # Paso 3: Deploy a Cloud Run
+  # --------------------------------------------------------------------------
+  # Paso 3: Desplegar en Cloud Run
+  # --------------------------------------------------------------------------
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -30,20 +35,57 @@ steps:
       - '--image'
       - 'gcr.io/$PROJECT_ID/nexus-legal-api:$COMMIT_SHA'
       - '--region'
-      - 'us-central1'  # Cambiar según tu región
+      - 'us-central1'
       - '--platform'
       - 'managed'
-      - '--allow-unauthenticated'  # Cambiar a --no-allow-unauthenticated si requieres auth
+      - '--allow-unauthenticated'
+      
+      # --- SECRETOS (Desde Secret Manager) ---
+      - '--set-secrets'
+      - 'CLICKUP_API_TOKEN=CLICKUP_API_TOKEN:latest,CLICKUP_WEBHOOK_SECRET=CLICKUP_WEBHOOK_SECRET:latest'
+
+      # --- VARIABLES DE ENTORNO (Consolidadas desde tu final_env.yaml) ---
       - '--set-env-vars'
       - 'APP_ENV=production'
-      - '--set-secrets'
-      - 'CLICKUP_API_TOKEN=CLICKUP_API_TOKEN:latest,CLICKUP_WEBHOOK_SECRET=CLICKUP_WEBHOOK_SECRET:latest,DATABASE_URL=DATABASE_URL:latest'
-      - '--add-cloudsql-instances'
-      - '$PROJECT_ID:REGION:INSTANCE_NAME'  # Reemplazar con tu instancia Cloud SQL
-      - '--min-instances'
-      - '0'  # Scale to zero
-      - '--max-instances'
-      - '10'
+      - '--set-env-vars'
+      - 'DEBUG=true'
+      - '--set-env-vars'
+      - 'LOG_LEVEL=INFO'
+      - '--set-env-vars'
+      - 'CORS_ORIGINS=*'
+      
+      # Configuración ClickUp
+      - '--set-env-vars'
+      - 'CLICKUP_TEAM_ID=31633845'
+      - '--set-env-vars'
+      - 'CLICKUP_LIST_ID=901403238634'  # ID Confirmado (Home List)
+      - '--set-env-vars'
+      - 'CLICKUP_TRIGGER_CONDICIONAL=Link Intake'
+      - '--set-env-vars'
+      - 'CLICKUP_FIELD_ID_AI_LINK=3aa46502-0763-42d3-8cb9-71513566e3ae'
+      
+      # Configuración Google Sheets
+      - '--set-env-vars'
+      - 'GOOGLE_SHEETS_ENABLED=true'
+      - '--set-env-vars'
+      - 'GOOGLE_SHEETS_SPREADSHEET_ID=161uBv2YTWOiR-82zlsf6ANbiqtfiow8B4x62VXCTPwU'
+      - '--set-env-vars'
+      - 'GOOGLE_SHEETS_SHEET_NAME=logs'
+      - '--set-env-vars'
+      - 'GOOGLE_SHEETS_FIELD_MAPPING={"task_id": 1, "task_name": 2, "status": 3, "link_intake": 4, "url": 5}'
+      
+      # Configuración Dispatch Externo
+      - '--set-env-vars'
+      - 'EXTERNAL_DISPATCH_ENABLED=true'
+      - '--set-env-vars'
+      - 'EXTERNAL_DISPATCH_URL=https://filtros-ai-service-907757756276.us-central1.run.app/v1/process'
+      - '--set-env-vars'
+      - 'EXTERNAL_DISPATCH_CALLBACK_BASE_URL=https://nexus-legal-api-223080314602.us-central1.run.app'
+      
+      - '--set-env-vars'
+      - 'FILTROS_API_KEY=tu-api-key-real'  # <--- ASEGÚRATE DE CAMBIAR ESTO POR LA LLAVE REAL ANTES DE SUBIR
+
+      # Configuración de Recursos
       - '--memory'
       - '512Mi'
       - '--cpu'

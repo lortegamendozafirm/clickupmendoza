@@ -5,8 +5,8 @@ Servicio para interactuar con Google Sheets usando ADC (Application Default Cred
 import logging
 from typing import Optional, Dict, Any
 import gspread
-import google.auth # <--- CAMBIO IMPORTANTE
-from google.oauth2.service_account import Credentials # Se mantiene solo para fallback manual
+import google.auth
+from google.oauth2.service_account import Credentials
 from app.config import settings
 
 logger = logging.getLogger(__name__)

@@ -3,17 +3,16 @@ Endpoints para webhooks de ClickUp - MODO SIN BASE DE DATOS
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, BackgroundTasks
-# from sqlalchemy.orm import Session  <-- COMENTADO
 from typing import Optional
 import httpx
 import logging
 import json
 
-# from app.database import get_db  <-- COMENTADO
+
 from app.services.clickup_service import ClickUpService
-# from app.services.lead_service import LeadService          <-- COMENTADO
+
 from app.services.sheets_service import GoogleSheetsService
-# from app.repositories.lead_repository import LeadRepository <-- COMENTADO
+
 from app.config import settings
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])

@@ -7,7 +7,7 @@ class ArtifactsInfo(BaseModel):
 
 class DiagnosticsInfo(BaseModel):
     processing_time_ms: int
-    model_version: str
+    version: str
 
 class FiltrosCallbackPayload(BaseModel):
     """Payload recibido desde el servicio FILTROS."""
