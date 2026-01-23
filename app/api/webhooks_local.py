@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 @router.post("/clickup")
 async def clickup_webhook(
     request: Request,
-    background_tasks: BackgroundTasks, # <--- Inyectamos BackgroundTasks
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     x_signature: Optional[str] = Header(None)
 ):

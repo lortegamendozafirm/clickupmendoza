@@ -27,6 +27,10 @@ from app.core.parser import parse_task_content
 # ============================================================================
 # 1. EL MAPA DE LA VERDAD
 # ============================================================================
+
+# ============================================================================
+# 1. EL MAPA DE LA VERDAD (ACTUALIZADO)
+# ============================================================================
 CSV_TO_DB_MAP = {
     # Identificadores
     'task_id': 'task_id',
@@ -34,6 +38,16 @@ CSV_TO_DB_MAP = {
     'task_name': 'task_name',
     'status': 'status',
     
+    # --- NUEVAS COLUMNAS AGREGADAS ---
+    'space': 'space_name',
+    'folder': 'folder_name',
+    'list': 'list_name',
+    'lists': 'list_name',
+    'task_type': 'task_type',
+    'date_closed': 'date_closed',
+    'comment_count': 'comment_count',
+    # ---------------------------------
+
     # Metadatos
     'date_created': 'date_created',
     'date_updated': 'date_updated',
@@ -42,11 +56,9 @@ CSV_TO_DB_MAP = {
     'assignee': 'assignee',
     'priority': 'priority',
     
-    # Contenido
+    # ... (el resto de tu mapa sigue igual)
     'task_content': 'task_content',
     'latest_comment': 'latest_comment',
-    
-    # Campos Específicos
     'aviso_de_consulta_drop_down': 'consult_notice',
     'type_of_interview_drop_down': 'interview_type',
     'result_of_interview_drop_down': 'interview_result',
@@ -63,14 +75,10 @@ CSV_TO_DB_MAP = {
     'pipeline_de_viabilidad_drop_down': 'pipeline_de_viabilidad',
     'fecha_consulta_original_date': 'fecha_consulta_original',
     'accidente_drop_down': 'accident_last_2y',
-    
-    # Campos Texto
     'phone_short_text': 'phone_raw',
     'first_name_short_text': 'full_name_extracted',
     'e_mail_email': 'email_extracted',
     'address_location': 'location',
-    
-    # Calculados
     'nombre_clickup': 'nombre_clickup',
     'id_mycase': 'id_mycase',
     'nombre_normalizado': 'nombre_normalizado',
@@ -267,3 +275,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#python -m scripts.import_history /home/ortega/Descargas/DVS2025.csv /home/ortega/Descargas/DVS2024_1.csv /home/ortega/Descargas/DVS2024_2.csv

@@ -1,18 +1,20 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
-║                  NEXUS LEGAL INTEGRATION v2.1 - RESUMEN                      ║
-║                  Middleware ClickUp → Cloud SQL + API                        ║
+║                  NEXUS LEGAL INTEGRATION v2.2 - RESUMEN                      ║
+║             Middleware ClickUp → Cloud SQL + Filtros IA + API                ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 📦 STACK TECNOLÓGICO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ✓ Python 3.11+
-  ✓ FastAPI (async web framework)
+  ✓ FastAPI (async web framework + BackgroundTasks)
   ✓ SQLAlchemy 2.0 (ORM)
   ✓ PostgreSQL 15 + pg_trgm (fuzzy search)
   ✓ Google Cloud Run (serverless hosting)
   ✓ Cloud SQL (managed PostgreSQL)
   ✓ Secret Manager (credentials)
   ✓ Alembic (database migrations)
+  ✓ Enqueuer + Filtros IA (procesamiento inteligente)
+  ✓ Google Sheets API (logs y reportes)
 
 📁 ESTRUCTURA DEL PROYECTO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -55,19 +57,24 @@ clickupmendoza/
 🔄 FLUJOS PRINCIPALES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1️⃣  WEBHOOK INGEST (Tiempo Real)
-   ClickUp → POST /webhooks/clickup → Validar firma → Fetch task completa
-   → Parse + Normalize → Upsert en Cloud SQL
+1️⃣  WEBHOOK INGEST (Tiempo Real + Background)
+   ClickUp → POST /webhooks/clickup → Validar firma → Fetch task
+   → Verificar anti-bucle → Parse + Normalize → Upsert DB
+   → Background: Dispatch FIA + Sync Sheets
 
-2️⃣  BÚSQUEDA FUZZY (MCP/API)
+2️⃣  DISPATCH A FILTROS IA (Background)
+   Link Intake detectado → Enqueuer (Cloud Tasks) → Filtros IA
+   → Callback a Nexus → Update campo AI Link en ClickUp
+
+3️⃣  BÚSQUEDA FUZZY (MCP/API)
    Cliente → GET /leads/search?q=nombre → Normalizar query
    → SQL: WHERE nombre_normalizado % 'query' → Retornar top N
 
-3️⃣  BOOTSTRAP HISTÓRICO (ETL)
+4️⃣  BOOTSTRAP HISTÓRICO (ETL)
    CSV files → load_historical_data.py → Parse cada fila
    → Transform → Upsert batch en DB
 
-4️⃣  SAFETY NET (Job Nocturno)
+5️⃣  SAFETY NET (Job Nocturno)
    Cloud Scheduler → ClickUp API (delta últimas 24h)
    → Transform → Upsert → Captura webhooks perdidos
 
@@ -85,6 +92,12 @@ clickupmendoza/
    • Orden flexible: "Juan Perez" ≈ "Perez Juan"
    • Score de similitud (0.0 - 1.0)
    • Índice GIN para performance
+
+✅ Integración Filtros IA (v2.2)
+   • Dispatch automático vía Enqueuer
+   • Procesamiento en background (respuesta rápida)
+   • Protección anti-bucle (campo AI Link)
+   • Callback para actualizar ClickUp
 
 ✅ Arquitectura por Capas
    • API → Services → Core → Repositories → Models
@@ -221,5 +234,5 @@ NORMALIZACIÓN (task_name):
   Para problemas o preguntas, contactar al equipo de desarrollo.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Versión: 2.1.0 | Fecha: 2026-01-05 | Stack: Python 3.11 + FastAPI + Cloud Run
+Versión: 2.2.0 | Fecha: 2026-01-23 | Stack: Python 3.11 + FastAPI + Cloud Run + FIA
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

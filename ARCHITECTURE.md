@@ -1,4 +1,4 @@
-# Arquitectura Técnica - Nexus Legal Integration v2.1
+# Arquitectura Técnica - Nexus Legal Integration v2.2
 
 ## Diagrama de Arquitectura
 
@@ -73,6 +73,16 @@
 │  │  • B-tree en task_id, phone_number, date_updated            │    │
 │  └─────────────────────────────────────────────────────────────┘    │
 └─────────────┬───────────────────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    SERVICIOS EXTERNOS (Background)                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐     ┌──────────────┐     ┌─────────────────┐      │
+│  │   Enqueuer   │────▶│  Filtros IA  │────▶│ Callback /      │      │
+│  │ (Cloud Tasks)│     │   (FIA)      │     │ ClickUp Update  │      │
+│  └──────────────┘     └──────────────┘     └─────────────────┘      │
+└─────────────────────────────────────────────────────────────────────┘
               │
               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -225,20 +235,22 @@ LIMIT 10;
 
 ## Flujos de Datos
 
-### Flujo 1: Webhook Ingest (Tiempo Real)
+### Flujo 1: Webhook Ingest (Tiempo Real + Background)
 
 ```
 1. ClickUp webhook → POST /webhooks/clickup
 2. Validar firma (x-signature)
 3. Obtener tarea completa de ClickUp API
-4. LeadService.transform_clickup_task()
+4. Verificar protección anti-bucle (campo AI Link)
+5. LeadService.transform_clickup_task()
    ├─ Normalizar task_name → nombre_normalizado
    ├─ Parsear task_content → campos minados
    └─ Limpiar teléfonos, fechas
-5. LeadRepository.upsert()
-   ├─ Si task_id existe → UPDATE
-   └─ Si no existe → INSERT
-6. Retornar {"status": "success", "synced_at": "..."}
+6. LeadRepository.upsert() (DB local)
+7. Encolar tareas en Background (FastAPI BackgroundTasks):
+   ├─ Dispatch a Enqueuer → Filtros IA (si Link Intake presente)
+   └─ Sync a Google Sheets (si habilitado)
+8. Retornar {"status": "queued", "task_id": "..."}
 ```
 
 ### Flujo 2: Búsqueda Fuzzy (MCP/API)
@@ -266,7 +278,21 @@ LIMIT 10;
 3. Commit cada 100 registros
 ```
 
-### Flujo 4: Safety Net Job (Nocturno)
+### Flujo 4: Dispatch a Filtros IA (Background)
+
+```
+1. Webhook detecta Link Intake con valor
+2. Background task: _dispatch_to_external_service()
+3. Construir payload para Enqueuer:
+   ├─ task_id, client_name, intake_url
+   ├─ callback_url: /callbacks/filtros
+   └─ metadata: clickup_status, clickup_url
+4. POST → Enqueuer (Cloud Tasks Wrapper)
+5. Enqueuer encola → Filtros IA procesa
+6. Filtros IA → Callback a Nexus → Update ClickUp
+```
+
+### Flujo 5: Safety Net Job (Nocturno)
 
 ```
 1. Cloud Scheduler → Cloud Run (endpoint interno)
@@ -387,5 +413,5 @@ LIMIT 10;
 
 ---
 
-**Versión:** 2.1.0
-**Última actualización:** 2026-01-05
+**Versión:** 2.2.0
+**Última actualización:** 2026-01-23

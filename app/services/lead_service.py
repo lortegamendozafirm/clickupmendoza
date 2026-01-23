@@ -23,14 +23,6 @@ class LeadService:
         """
         Transforma un objeto de tarea de ClickUp en un diccionario
         listo para insertar en leads_cache.
-
-        Aplica toda la lógica de parsing y normalización.
-
-        Args:
-            task_data: Respuesta de la API de ClickUp (task object)
-
-        Returns:
-            Diccionario con campos normalizados para LeadsCache
         """
         result = {}
 
@@ -53,11 +45,9 @@ class LeadService:
         result["status"] = task_data.get("status", {}).get("status")
         result["priority"] = task_data.get("priority", {}).get("priority") if task_data.get("priority") else None
 
-        # Creator
         creator = task_data.get("creator", {})
         result["created_by"] = creator.get("username") if creator else None
 
-        # Assignees (puede ser múltiple; guardar como string separado por comas)
         assignees = task_data.get("assignees", [])
         if assignees:
             assignee_names = [a.get("username", "") for a in assignees]
@@ -66,45 +56,53 @@ class LeadService:
             result["assignee"] = None
 
         # ====================================================================
-        # FECHAS (normalizar con remove_ordinal_suffix)
+        # FECHAS
         # ====================================================================
-        result["date_created"] = LeadService._parse_clickup_date(
-            task_data.get("date_created")
-        )
-        result["date_updated"] = LeadService._parse_clickup_date(
-            task_data.get("date_updated")
-        )
-        result["due_date"] = LeadService._parse_clickup_date(
-            task_data.get("due_date")
-        )
+        result["date_created"] = LeadService._parse_clickup_date(task_data.get("date_created"))
+        result["date_updated"] = LeadService._parse_clickup_date(task_data.get("date_updated"))
+        result["due_date"] = LeadService._parse_clickup_date(task_data.get("due_date"))
+        
+        # Agregamos fecha de cierre si existe (importante para tu modelo)
+        result["date_closed"] = LeadService._parse_clickup_date(task_data.get("date_closed"))
 
         # ====================================================================
-        # CAMPOS DE NEGOCIO (custom fields si existen)
+        # CAMPOS DE NEGOCIO (custom fields)
         # ====================================================================
         custom_fields = task_data.get("custom_fields", [])
         result.update(LeadService._parse_custom_fields(custom_fields))
 
         # ====================================================================
-        # CONTENIDO Y PARSING
+        # CONTENIDO Y PARSING (AQUÍ ESTABA EL ERROR)
         # ====================================================================
         task_content = task_data.get("description", "") or task_data.get("text_content", "")
         result["task_content"] = task_content if task_content else None
 
-        # Parse task_content -> extraer campos minados
+        extracted_mycase_id = None
+
         if task_content:
             parsed = parse_task_content(task_content)
+            
+            # --- CORRECCIÓN CRÍTICA ---
+            # Extraemos 'mycase_id' y lo eliminamos del diccionario 'parsed'
+            # para que no contamine el diccionario 'result' con una clave inválida.
+            if "mycase_id" in parsed:
+                extracted_mycase_id = parsed.pop("mycase_id")
+            
+            # Ahora es seguro hacer update con el resto de campos (email, phone, etc.)
             result.update(parsed)
 
-            # Si no encontramos id_mycase en el nombre, usar el del contenido
-            if not id_mycase_from_name and parsed.get("mycase_id"):
-                result["id_mycase"] = parsed["mycase_id"]
-            else:
-                result["id_mycase"] = id_mycase_from_name
+        # Lógica de prioridad para id_mycase
+        if not id_mycase_from_name and extracted_mycase_id:
+            result["id_mycase"] = extracted_mycase_id
         else:
             result["id_mycase"] = id_mycase_from_name
 
         # Comentarios
         result["comment_count"] = len(task_data.get("comments", []))
+        
+        # --- LIMPIEZA FINAL DE SEGURIDAD ---
+        # Aseguramos que bajo ninguna circunstancia 'mycase_id' llegue a la DB
+        result.pop("mycase_id", None)
 
         return result
 

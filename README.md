@@ -1,11 +1,13 @@
-# Nexus Legal Integration v2.1
+# Nexus Legal Integration v2.2
 
-Middleware de integración entre ClickUp y Cloud SQL (PostgreSQL) con API para búsqueda fuzzy y sincronización de datos.
+Middleware de integración entre ClickUp, Cloud SQL (PostgreSQL) y servicios externos (Filtros IA) con API para búsqueda fuzzy, sincronización de datos y procesamiento inteligente de leads.
 
 ## Arquitectura
 
 ```
 ClickUp API/Webhooks → FastAPI (Cloud Run) → Cloud SQL PostgreSQL → API Consumers (MCP/Sheets)
+                              ↓
+                    Enqueuer (Cloud Tasks) → Filtros IA → Callback → ClickUp Update
 ```
 
 **Componentes principales:**
@@ -14,6 +16,8 @@ ClickUp API/Webhooks → FastAPI (Cloud Run) → Cloud SQL PostgreSQL → API Co
 - **Cloud SQL**: PostgreSQL con extensión `pg_trgm` para búsqueda fuzzy
 - **Cloud Run**: Hosting serverless (scale-to-zero)
 - **Secret Manager**: Gestión de credenciales
+- **Enqueuer + Filtros IA**: Procesamiento inteligente de leads vía Cloud Tasks
+- **Google Sheets**: Sincronización de logs y reportes
 
 ## Stack Tecnológico
 
@@ -333,13 +337,20 @@ Acceder en: [Cloud Console → Cloud Run → Metrics](https://console.cloud.goog
 - **Cloud SQL**: Encriptación en reposo por default
 - **IAM**: Control de acceso granular
 
-## Nuevas Funcionalidades (v2.1) ✨
+## Nuevas Funcionalidades (v2.2) ✨
 
+### Versión 2.2 (Enero 2026)
+- [x] **Integración con Filtros IA (FIA)**: Envío automático de leads al microservicio de filtros inteligentes via Enqueuer
+- [x] **Procesamiento en Background**: Tareas pesadas (dispatch, sheets) ejecutadas en segundo plano para respuesta rápida a ClickUp
+- [x] **Protección contra Bucles**: Verificación de campo `AI Link` para evitar reprocesamiento
+- [x] **Lista Optimizada**: Configuración para lista "CONSULTAS AGENDA" como fuente principal
+- [x] **Callback URL**: Soporte para recibir respuestas del servicio de Filtros IA
+
+### Versión 2.1
 - [x] **Integración con Google Sheets**: Sincronización automática vía Service Account
 - [x] **External Dispatch**: Notificación HTTP a servicios externos
 - [x] **Trigger Condicional**: Acciones basadas en campo "Link Intake"
 - [x] **Filtrado por Lista**: Webhooks específicos para lista configurada
-- [x] **Script de Registro**: `register_webhook.py` para setup automatizado
 
 Ver [INTEGRATION_SETUP.md](INTEGRATION_SETUP.md) para instrucciones detalladas.
 
@@ -357,8 +368,8 @@ Para issues o preguntas, contactar al equipo de desarrollo.
 
 ---
 
-**Versión:** 2.1.0
-**Última actualización:** 2026-01-06
+**Versión:** 2.2.0
+**Última actualización:** 2026-01-23
 
 ## Documentación Adicional
 

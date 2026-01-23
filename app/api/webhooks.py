@@ -1,18 +1,20 @@
 """
-Endpoints para webhooks de ClickUp - MODO SIN BASE DE DATOS
+Endpoints para webhooks de ClickUp
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, BackgroundTasks
+from sqlalchemy.orm import Session
 from typing import Optional
 import httpx
 import logging
 import json
+import uuid
 
-
+from app.database import get_db
+from app.repositories.lead_repository import LeadRepository
+from app.services.lead_service import LeadService
 from app.services.clickup_service import ClickUpService
-
 from app.services.sheets_service import GoogleSheetsService
-
 from app.config import settings
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def clickup_webhook(
     request: Request,
     background_tasks: BackgroundTasks,
-    # db: Session = Depends(get_db),  <-- IMPORTANTE: COMENTAR ESTO PARA EVITAR ERROR DE CONEXIÓN
+    db: Session = Depends(get_db),
     x_signature: Optional[str] = Header(None)
 ):
     """
@@ -57,12 +59,13 @@ async def clickup_webhook(
     task_data = await clickup_service.get_task(task_id)
     if not task_data:
         raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
-
+    """
     # Filtro de lista
     task_list_id = task_data.get("list", {}).get("id")
     if settings.clickup_list_id and task_list_id != settings.clickup_list_id:
         return {"status": "ignored", "reason": "wrong_list"}
-
+    """
+    
     # 3. Lógica del Trigger
     link_intake_value = None
     custom_fields = task_data.get("custom_fields", [])
@@ -104,27 +107,27 @@ async def clickup_webhook(
                 task_data
             )
 
-    # 5. Guardar en DB Local (Rápido) - DESHABILITADO TEMPORALMENTE
-    # lead_data = LeadService.transform_clickup_task(task_data)
-    # repo = LeadRepository(db)   <-- ESTO REQUERIRÍA LA VARIABLE 'db' QUE QUITAMOS ARRIBA
-    # lead = repo.upsert(lead_data)
+    # 5. Guardar en DB Local (Rápido)
+    lead_data = LeadService.transform_clickup_task(task_data)
+    repo = LeadRepository(db)
+    lead = repo.upsert(lead_data)
 
     # RESPONDER A CLICKUP INMEDIATAMENTE
     return {"status": "queued", "task_id": task_id}
 
 
-# ... (El resto de funciones auxiliares _dispatch y _sync se quedan igual) ...
 async def _dispatch_to_external_service(task_id: str, task_data: dict, link_intake_value: str) -> bool:
     """
-    Envía a Filtros con LOGS DETALLADOS.
+    Envía la solicitud al ENQUEUER (Cloud Tasks Wrapper).
     """
-    logger.info(f"🚀 [Background] Iniciando Dispatch a Filtros para Task {task_id}")
+    logger.info(f"🚀 [Background] Preparando envío al Enqueuer para Task {task_id}")
     
     try:
+        # 1. Payload INTERNO (Lo que recibirá Filtros AI al final)
         base_url = settings.external_dispatch_callback_base_url.rstrip("/")
         callback_url = f"{base_url}/callbacks/filtros"
         
-        payload = {
+        worker_payload = {
             "task_id": task_id,
             "client_name": task_data.get("name"),
             "intake_url": link_intake_value,
@@ -135,31 +138,43 @@ async def _dispatch_to_external_service(task_id: str, task_data: dict, link_inta
             }
         }
 
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": settings.filtros_api_key
+        # 2. Payload EXTERNO (Para el Enqueuer)
+        # Tu script 'main.py' espera: service, payload, worker_api_key
+        enqueuer_payload = {
+            "service": "filtros-ai",
+            "worker_api_key": settings.filtros_api_key,
+            "payload": worker_payload,
+            "idempotency_key": f"task-{task_id}-{uuid.uuid4().hex[:6]}"
         }
 
-        logger.info(f"📦 [Background] PAYLOAD A ENVIAR A {settings.external_dispatch_url}:\n{json.dumps(payload, indent=2)}")
+        headers = {
+            "Content-Type": "application/json"
+            # NOTA: No enviamos X-API-Key en el header hacia el Enqueuer, 
+            # lo enviamos en el body ('worker_api_key') según tu diseño.
+        }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        logger.info(f"📦 [Enqueuer Dispatch] Enviando a {settings.external_dispatch_url}")
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 settings.external_dispatch_url,
-                json=payload,
+                json=enqueuer_payload,
                 headers=headers
             )
             
-            logger.info(f"📨 [Background] Filtros respondió: {response.status_code}")
             if response.status_code >= 400:
-                logger.error(f"❌ Error Body: {response.text}")
+                logger.error(f"❌ Error Enqueuer Body: {response.text}")
                 
             response.raise_for_status()
+            
+            resp_data = response.json()
+            # Tu enqueuer devuelve: {"ok": True, "task": "...", ...}
+            logger.info(f"✅ [Enqueued] Tarea creada: {resp_data.get('task')}")
 
-        logger.info(f"✅ [Background] Dispatch exitoso para {task_id}")
         return True
 
     except Exception as e:
-        logger.error(f"❌ [Background] Error en dispatch: {e}")
+        logger.error(f"❌ [Background] Error llamando al Enqueuer: {e}")
         return False
 
 

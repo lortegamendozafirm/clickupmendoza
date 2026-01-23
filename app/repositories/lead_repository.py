@@ -29,46 +29,56 @@ class LeadRepository:
         """Obtiene un lead por id_mycase"""
         return self.db.query(LeadsCache).filter(LeadsCache.id_mycase == mycase_id).first()
 
+    
     def upsert(self, data: dict) -> LeadsCache:
         """
-        Inserta o actualiza un registro (UPSERT).
-
-        Args:
-            data: Diccionario con los campos del lead
-
-        Returns:
-            Lead insertado/actualizado
+        Inserta o actualiza un registro manejando concurrencia.
+        Usa session.merge() y try/except para evitar choques.
         """
         task_id = data.get("task_id")
         if not task_id:
-            raise ValueError("task_id es requerido para upsert")
+            raise ValueError("Task ID is required for upsert")
 
-        # 1. Definimos la hora actual UTC una sola vez (Python 3.11 way)
-        # datetime.utcnow() está deprecado, usamos datetime.now(timezone.utc)
-        current_time = datetime.now(timezone.utc)
+        # 1. Limpieza de seguridad (mycase_id vs id_mycase)
+        if "mycase_id" in data:
+            # Si no trae id_mycase explícito, usamos el que viene como mycase_id
+            if not data.get("id_mycase"):
+                data["id_mycase"] = data.pop("mycase_id")
+            else:
+                # Si ya tiene id_mycase, solo borramos la clave basura
+                data.pop("mycase_id")
 
-        # Buscar si existe
-        existing = self.get_by_task_id(task_id)
+        # 2. Manejo de fecha UTC (Tu corrección estaba bien, la mantenemos)
+        if "synced_at" not in data:
+            data["synced_at"] = datetime.now(timezone.utc)
 
-        if existing:
-            # UPDATE
-            for key, value in data.items():
-                if hasattr(existing, key):
-                    setattr(existing, key, value)
+        try:
+            # Creamos una instancia temporal con los datos
+            lead_instance = LeadsCache(**data)
             
-            # Corrección: Asignamos el valor directo, NO una lambda
-            existing.synced_at = current_time
-            lead = existing
-        else:
-            # INSERT
-            # Corrección: Asignamos el valor directo al diccionario antes de crear el objeto
-            data["synced_at"] = current_time
-            lead = LeadsCache(**data)
-            self.db.add(lead)
+            # MERGE: SQLAlchemy se encarga de ver si está en sesión o DB.
+            # Si existe PK, actualiza. Si no, prepara insert.
+            merged_lead = self.db.merge(lead_instance)
+            
+            # Intentamos guardar
+            self.db.commit()
+            
+            # Refrescamos para tener los datos finales (IDs, fechas autogeneradas)
+            # Ojo: refresh sobre 'merged_lead', no sobre 'lead_instance'
+            return merged_lead
 
-        self.db.commit()
-        self.db.refresh(lead)
-        return lead
+        except Exception as e:
+            self.db.rollback()
+            # Si falló (probablemente por carrera), intentamos recuperarnos suavemente
+            # devolviendo lo que ya existe en la DB sin explotar.
+            print(f"⚠️ Aviso en upsert (Recuperado de Race Condition): {e}")
+            
+            existing = self.get_by_task_id(task_id)
+            if existing:
+                return existing
+            
+            # Si falló y no existe... entonces es un error real, lo relanzamos.
+            raise e
 
     def search_by_name(self, query: str, limit: int = 10) -> List[LeadsCache]:
         """

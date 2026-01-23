@@ -1,6 +1,8 @@
-# Guía Rápida de Inicio
+# Guía Rápida de Inicio - Nexus Legal v2.2
 
 Esta guía te llevará desde cero hasta tener el servicio corriendo en menos de 10 minutos.
+
+> **Nota v2.2:** El servicio ahora incluye integración con Filtros IA (FIA) y procesamiento en background.
 
 ## 🚀 Quick Start Local (Desarrollo)
 
@@ -307,8 +309,9 @@ gcloud secrets versions access latest --secret=DATABASE_URL
 1. **Leer el [README.md](README.md)** para entender la arquitectura
 2. **Explorar la API:** http://localhost:8080/docs
 3. **Cargar datos históricos** con el script ETL
-4. **Configurar webhook** de ClickUp
-5. **Monitorear logs** en Cloud Run
+4. **Configurar webhook** de ClickUp (lista: CONSULTAS AGENDA)
+5. **Configurar integración FIA** (Filtros IA) si aplica
+6. **Monitorear logs** en Cloud Run
 
 ## 🆘 Soporte
 
@@ -316,5 +319,5 @@ Para problemas o preguntas, contactar al equipo de desarrollo.
 
 ---
 
-**Versión:** 2.1.0
-**Última actualización:** 2026-01-05
+**Versión:** 2.2.0
+**Última actualización:** 2026-01-23

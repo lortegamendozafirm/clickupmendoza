@@ -1,3 +1,4 @@
+#app/models/lead.py
 """
 Modelo principal: leads_cache
 Versión Homologada con CSV de Exportación y Análisis R.

@@ -6,7 +6,7 @@ load_dotenv()
 API_TOKEN = os.getenv("CLICKUP_API_TOKEN")
 
 # Pon aquí el ID de la tarea que estás usando para probar (ej: "86b86m8pu")
-TASK_ID = "86b86m9pq" 
+TASK_ID = "86b86zq6z" 
 
 def check_task_location():
     headers = {"Authorization": API_TOKEN}

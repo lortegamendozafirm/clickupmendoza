@@ -1,6 +1,8 @@
-# 📚 Índice de Documentación - Nexus Legal Integration
+# 📚 Índice de Documentación - Nexus Legal Integration v2.2
 
 Guía de navegación rápida por toda la documentación del proyecto.
+
+> **Actualización v2.2 (Enero 2026):** Integración con Filtros IA, procesamiento background, protección anti-bucle.
 
 ---
 
@@ -291,5 +293,5 @@ Si no encuentras lo que buscas:
 
 ---
 
-**Última actualización:** 2026-01-05
-**Versión:** 2.1.0
+**Última actualización:** 2026-01-23
+**Versión:** 2.2.0

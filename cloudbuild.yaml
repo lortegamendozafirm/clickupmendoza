@@ -78,7 +78,7 @@ steps:
       - '--set-env-vars'
       - 'EXTERNAL_DISPATCH_ENABLED=true'
       - '--set-env-vars'
-      - 'EXTERNAL_DISPATCH_URL=https://filtros-ai-service-907757756276.us-central1.run.app/v1/process'
+      - 'EXTERNAL_DISPATCH_URL=https://enqueuer-api-907757756276.us-central1.run.app/enqueue'
       - '--set-env-vars'
       - 'EXTERNAL_DISPATCH_CALLBACK_BASE_URL=https://nexus-legal-api-223080314602.us-central1.run.app'
       

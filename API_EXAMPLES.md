@@ -28,7 +28,7 @@ curl http://localhost:8080/
 {
   "status": "healthy",
   "service": "Nexus Legal Integration",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "environment": "development"
 }
 ```
@@ -261,10 +261,8 @@ curl "http://localhost:8080/leads/?skip=0&limit=50"
 
 ```json
 {
-  "status": "success",
-  "event": "taskUpdated",
-  "task_id": "abc123",
-  "synced_at": "2024-01-20T15:30:00Z"
+  "status": "queued",
+  "task_id": "abc123"
 }
 ```
 
@@ -485,5 +483,5 @@ Crear colección con estos endpoints:
 
 ---
 
-**Versión:** 2.1.0
-**Última actualización:** 2026-01-05
+**Versión:** 2.2.0
+**Última actualización:** 2026-01-23
