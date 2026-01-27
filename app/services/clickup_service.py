@@ -1,3 +1,4 @@
+# app/services/clickup_service.py
 """
 Servicio para interactuar con la API de ClickUp.
 Obtiene tareas, comentarios, etc.
@@ -103,27 +104,27 @@ class ClickUpService:
                 print(f"Error obteniendo comentarios de {task_id}: {e}")
                 return []
 
-    def verify_webhook_signature(self, payload: str, signature: str) -> bool:
+    def verify_webhook_signature(self, payload: str, signature: str, secret: Optional[str] = None) -> bool:
         """
-        Verifica la firma HMAC-SHA256 del webhook de ClickUp.
+        Verifica la firma HMAC-SHA256 permitiendo elegir el secreto.
         """
-        if not signature or not settings.clickup_webhook_secret:
+        # Si no se provee un secreto específico, usamos el de leads por defecto
+        webhook_secret = secret or settings.clickup_webhook_secret
+        
+        if not signature or not webhook_secret:
             return False
 
         try:
-            # 1. Convertir el secreto y el payload a bytes
-            secret_bytes = settings.clickup_webhook_secret.encode('utf-8')
+            secret_bytes = webhook_secret.encode('utf-8')
             payload_bytes = payload.encode('utf-8')
-
-            # 2. Calcular el hash esperado usando HMAC-SHA256
+            
             expected_hash = hmac.new(secret_bytes, payload_bytes, hashlib.sha256).hexdigest()
-
-            # 3. Comparar de forma segura (previene ataques de tiempo)
             return hmac.compare_digest(signature, expected_hash)
             
         except Exception as e:
             print(f"❌ Error validando firma: {e}")
             return False
+        
     async def set_custom_field_value(self, task_id: str, field_id: str, value: str) -> bool:
             """
             Establece el valor de un campo personalizado en una tarea.

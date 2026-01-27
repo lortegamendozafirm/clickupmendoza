@@ -8,9 +8,9 @@ load_dotenv()
 
 # Configuración
 CLICKUP_API_TOKEN = os.getenv("CLICKUP_API_TOKEN")
-CLICKUP_LIST_ID = os.getenv("CLICKUP_LIST_ID")
+CLICKUP_LIST_ID = 901407053200
 # NOTA: Cambia esto si tu URL de ngrok cambió
-WEBHOOK_URL = "https://nexus-legal-api-223080314602.us-central1.run.app/webhooks/clickup"
+WEBHOOK_URL = "https://nexus-legal-api-223080314602.us-central1.run.app/webhooks/assignments"
 
 def register_and_show_secret():
     if not CLICKUP_API_TOKEN or not CLICKUP_LIST_ID:

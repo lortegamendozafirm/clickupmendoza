@@ -1,26 +1,39 @@
 # app/main.py
-"""
-FastAPI Application - Nexus Legal Integration
-Punto de entrada principal de la aplicación.
-"""
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.config import settings
-from app.api import webhooks, leads, callbacks
+from contextlib import asynccontextmanager
 
+from app.config import settings
+from app.api import webhooks, leads, callbacks, webhook_assignments
+
+# ============================================================================
+# Lifespan Event Handler (Reemplaza a on_event)
+# ============================================================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Código que se ejecuta al iniciar
+    print("🚀 Nexus Legal Integration API iniciada")
+    print(f"📍 Entorno: {settings.app_env}")
+    print(f"🗄️  Base de datos: {settings.database_host}")
+    
+    yield # Aquí es donde la aplicación corre
+    
+    # Shutdown: Código que se ejecuta al detener
+    print("👋 Nexus Legal Integration API detenida")
+
+# ============================================================================
 # Crear aplicación FastAPI
+# ============================================================================
 app = FastAPI(
     title="Nexus Legal Integration API",
     description="Middleware de integración ClickUp → Cloud SQL + API (MCP/Search)",
-    version="2.1.0",
+    version="2.2.1", # Incrementamos versión por la nueva lista
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan # Registramos el lifespan aquí
 )
 
-# ============================================================================
 # CORS Configuration
-# ============================================================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -32,8 +45,14 @@ app.add_middleware(
 # ============================================================================
 # Routes
 # ============================================================================
-app.include_router(webhooks.router)
+# Lista original: CONSULTAS AGENDA
+app.include_router(webhooks.router) 
 app.include_router(leads.router)
+
+# Nueva lista: CASE ASSIGNMENT
+app.include_router(webhook_assignments.router)
+
+# Callbacks e IA
 app.include_router(callbacks.router, prefix="/callbacks", tags=["Callbacks"])
 
 # ============================================================================
@@ -41,33 +60,13 @@ app.include_router(callbacks.router, prefix="/callbacks", tags=["Callbacks"])
 # ============================================================================
 @app.get("/", tags=["health"])
 def health_check():
-    """Health check endpoint"""
     return {
         "status": "healthy",
         "service": "Nexus Legal Integration",
-        "version": "2.1.0",
+        "version": "2.2.1",
         "environment": settings.app_env
     }
 
-
 @app.get("/health", tags=["health"])
 def health():
-    """Health check for Cloud Run"""
     return {"status": "ok"}
-
-
-# ============================================================================
-# Startup/Shutdown Events
-# ============================================================================
-@app.on_event("startup")
-async def startup_event():
-    """Ejecutado al iniciar la aplicación"""
-    print("🚀 Nexus Legal Integration API iniciada")
-    print(f"📍 Entorno: {settings.app_env}")
-    print(f"🗄️  Base de datos: {settings.database_host}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Ejecutado al detener la aplicación"""
-    print("👋 Nexus Legal Integration API detenida")

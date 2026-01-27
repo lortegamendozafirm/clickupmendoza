@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     clickup_list_id: Optional[str] = None
     clickup_trigger_condicional: Optional[str] = None
     clickup_field_id_ai_link: str
+    clickup_webhook_secret_assignments: str
 
     # Database
     database_url: Optional[str] = None
